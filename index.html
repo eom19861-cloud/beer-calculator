@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>맥주픽 - 맥주 가성비 계산기</title>
+
+<!-- ✅ PWA 설정 -->
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+
+<style>
+:root {
+  --bg: #f2f2f7;
+  --card: rgba(255,255,255,0.9);
+  --primary: #007aff;
+  --danger: #ff3b30;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+}
+
+.container {
+  max-width: 520px;
+  margin: auto;
+  padding: 16px;
+}
+
+h1 {
+  text-align: center;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  position: relative;
+  transition: 0.2s;
+}
+
+.card.best {
+  box-shadow: 0 0 0 2px var(--primary);
+  transform: scale(1.02);
+}
+
+.badge {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  background: var(--primary);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  margin-top: 6px;
+  border-radius: 10px;
+  border: none;
+  background: #f7f7f9;
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input {
+  flex: 1;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+}
+
+.add-btn { background: var(--primary); color: white; }
+.reset-btn { background: var(--danger); color: white; }
+.delete-btn { background: #eee; }
+
+.result {
+  margin-top: 10px;
+  font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>🍺 맥주픽</h1>
+  <div id="beerList"></div>
+
+  <button class="add-btn" onclick="addBeer()">+ 맥주 추가</button>
+  <button class="reset-btn" onclick="resetAll()">전체 초기화</button>
+</div>
+
+<script>
+let beerList = JSON.parse(localStorage.getItem("beerData")) || [];
+
+function save() {
+  localStorage.setItem("beerData", JSON.stringify(beerList));
+}
+
+function format(n) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function createCard(beer, index) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  card.innerHTML = `
+    <input placeholder="맥주 이름" value="${beer.name || ""}">
+    <div class="row">
+      <input type="number" placeholder="용량 ml" value="${beer.volume || ""}">
+      <input type="number" placeholder="개수" value="${beer.count || ""}">
+    </div>
+    <input placeholder="가격" value="${beer.price || ""}">
+    <div class="result">값 입력</div>
+    <button class="delete-btn">삭제</button>
+  `;
+
+  const inputs = card.querySelectorAll("input");
+
+  function update() {
+    beer.name = inputs[0].value;
+    beer.volume = inputs[1].value;
+    beer.count = inputs[2].value;
+
+    let raw = inputs[3].value.replace(/,/g,"");
+    beer.price = raw;
+
+    if (raw) inputs[3].value = format(raw);
+
+    highlightBest();
+    save();
+  }
+
+  inputs.forEach(i => i.addEventListener("input", update));
+
+  card.querySelector(".delete-btn").onclick = () => {
+    beerList.splice(index, 1);
+    render();
+    save();
+  };
+
+  return card;
+}
+
+function highlightBest() {
+  let bestIndex = -1;
+  let bestValue = Infinity;
+
+  beerList.forEach((b, i) => {
+    const v = parseFloat(b.volume);
+    const c = parseFloat(b.count);
+    const p = parseFloat(b.price);
+
+    if (v && c && p) {
+      const val = (p / (v * c)) * 100;
+      if (val < bestValue) {
+        bestValue = val;
+        bestIndex = i;
+      }
+    }
+  });
+
+  document.querySelectorAll(".card").forEach((card, i) => {
+    const beer = beerList[i];
+    const resultDiv = card.querySelector(".result");
+
+    const v = parseFloat(beer.volume);
+    const c = parseFloat(beer.count);
+    const p = parseFloat(beer.price);
+
+    if (v && c && p) {
+      const total = v * c;
+      const unit = (p / total) * 100;
+
+      resultDiv.innerHTML = `
+        총 용량: ${format(total)} ml<br>
+        100ml당 가격: <strong>${unit.toFixed(1)} 원</strong>
+      `;
+    }
+
+    card.classList.remove("best");
+    const badge = card.querySelector(".badge");
+    if (badge) badge.remove();
+
+    if (i === bestIndex) {
+      card.classList.add("best");
+
+      const b = document.createElement("div");
+      b.className = "badge";
+      b.innerText = "👑 최고 가성비";
+      card.appendChild(b);
+    }
+  });
+}
+
+function render() {
+  const container = document.getElementById("beerList");
+  container.innerHTML = "";
+
+  beerList.forEach((beer, i) => {
+    container.appendChild(createCard(beer, i));
+  });
+
+  highlightBest();
+}
+
+function addBeer() {
+  beerList.push({});
+  render();
+  save();
+}
+
+function resetAll() {
+  if (confirm("초기화할까요?")) {
+    beerList = [];
+    render();
+    save();
+  }
+}
+
+// ✅ PWA 서비스워커 등록
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+
+if (beerList.length === 0) addBeer();
+else render();
+</script>
+
+</body>
+</html>
