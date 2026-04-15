@@ -1,303 +1,195 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>맥주픽 - 맥주 가성비 계산기</title>
-
-<!-- ✅ PWA 설정 -->
-<link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" href="./icon-192.png">
-
-<style>
-:root {
-  --bg: #f2f2f7;
-  --card: rgba(255,255,255,0.9);
-  --primary: #007aff;
-  --danger: #ff3b30;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
-}
-
-.container {
-  max-width: 520px;
-  margin: auto;
-  padding: 16px;
-}
-
-h1 {
-  text-align: center;
-}
-
-.card {
-  background: var(--card);
-  border-radius: 18px;
-  padding: 14px;
-  margin-bottom: 12px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-  position: relative;
-  transition: 0.2s;
-}
-
-.card.best {
-  box-shadow: 0 0 0 2px var(--primary);
-  transform: scale(1.02);
-}
-
-.badge {
-  position: absolute;
-  top: -10px;
-  right: 12px;
-  background: var(--primary);
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-}
-
-input {
-  width: 100%;
-  padding: 12px;
-  margin-top: 6px;
-  border-radius: 10px;
-  border: none;
-  background: #f7f7f9;
-  font-size: 14px;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-}
-
-.row input {
-  flex: 1;
-}
-
-button {
-  width: 100%;
-  padding: 14px;
-  margin-top: 10px;
-  border-radius: 12px;
-  border: none;
-  font-size: 16px;
-}
-
-.add-btn { background: var(--primary); color: white; }
-.reset-btn { background: var(--danger); color: white; }
-.delete-btn { background: #eee; }
-
-.result {
-  margin-top: 10px;
-  font-size: 14px;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>가성비 맥주 계산기</title>
+  <link rel="manifest" href="./manifest.json">
+  <style>
+    body { font-family: 'Pretendard', sans-serif; background-color: #f0f4f8; margin: 0; padding: 0; }
+    .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; color: #1e88e5; margin-bottom: 24px; }
+    .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent; transition: all 0.3s; }
+    .card.best { border-color: #ffb300; background-color: #fffdf2; }
+    .row { display: flex; gap: 8px; margin-bottom: 10px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: white; }
+    input[type="number"], input[type="text"] { margin-bottom: 10px; }
+    .row input { margin-bottom: 0; }
+    .result { font-weight: bold; color: #555; margin-bottom: 10px; font-size: 14px; }
+    button { border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; }
+    .delete-btn { background-color: #ffebee; color: #c62828; }
+    .add-btn { background-color: #1e88e5; color: white; margin-bottom: 10px; }
+    .reset-btn { background-color: #e0e0e0; color: #333; }
+    .badge { display: inline-block; background: #ffb300; color: white; padding: 4px 8px; border-radius: 8px; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <h1>🍺 맥주픽</h1>
+    <div id="beerList"></div>
+    <button class="add-btn" onclick="addBeer()">+ 맥주 추가</button>
+    <button class="reset-btn" onclick="resetAll()">전체 초기화</button>
+  </div>
 
-<div class="container">
-  <h1>🍺 맥주픽</h1>
-  <div id="beerList"></div>
+  <script>
+    let beerList = JSON.parse(localStorage.getItem("beerData")) || [];
 
-  <button class="add-btn" onclick="addBeer()">+ 맥주 추가</button>
-  <button class="reset-btn" onclick="resetAll()">전체 초기화</button>
-</div>
-
-<script>
-let beerList = JSON.parse(localStorage.getItem("beerData")) || [];
-
-function save() {
-  localStorage.setItem("beerData", JSON.stringify(beerList));
-}
-
-function format(n) {
-  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function createCard(beer, index) {
-  const card = document.createElement("div");
-  card.className = "card";
-
-  // 🍺 자주 마시는 맥주 목록 (원하시는 대로 추가/수정 가능합니다)
-  const beerOptions = ["카스", "테라", "켈리", "하이트", "클라우드", "오비라거"];
-  
-  // 저장된 맥주 이름이 목록에 없으면 '직접입력' 모드로 판단
-  let isCustom = beer.name && !beerOptions.includes(beer.name);
-  let selectedValue = isCustom ? "직접입력" : (beer.name || "");
-
-  card.innerHTML = `
-    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-      <select class="beer-select" style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: white;">
-        <option value="">맥주 선택</option>
-        ${beerOptions.map(b => `<option value="${b}" ${selectedValue === b ? 'selected' : ''}>${b}</option>`).join('')}
-        <option value="직접입력" ${isCustom || selectedValue === '직접입력' ? 'selected' : ''}>직접 입력...</option>
-      </select>
-      <input class="name-input" placeholder="맥주 직접 입력" value="${isCustom ? beer.name : ''}" style="display: ${isCustom ? 'block' : 'none'}; flex: 1; margin: 0; padding: 14px; border-radius: 12px; border: 1px solid #ccc;">
-    </div>
-    <div class="row">
-      <input class="vol-input" type="number" placeholder="용량 ml" value="${beer.volume || ""}">
-      <input class="count-input" type="number" placeholder="개수" value="${beer.count || ""}">
-    </div>
-    <input class="price-input" type="text" placeholder="가격 (원)" value="${beer.price || ""}">
-    <div class="result"></div>
-    <button class="delete-btn">삭제</button>
-  `;
-
-  // 각 입력칸 요소 찾기
-  const beerSelect = card.querySelector(".beer-select");
-  const nameInput = card.querySelector(".name-input");
-  const volInput = card.querySelector(".vol-input");
-  const countInput = card.querySelector(".count-input");
-  const priceInput = card.querySelector(".price-input");
-
-  function update() {
-    // '직접입력'이 선택되었을 때는 텍스트 입력칸의 값을, 아니면 드롭다운의 값을 사용
-    beer.name = (beerSelect.value === "직접입력") ? nameInput.value : beerSelect.value;
-    beer.volume = volInput.value;
-    beer.count = countInput.value;
-
-    let raw = priceInput.value.replace(/,/g,"");
-    beer.price = raw;
-
-    if (raw) priceInput.value = format(raw);
-
-    highlightBest();
-    save();
-  }
-
-  // 드롭다운 선택이 바뀔 때 동작하는 이벤트
-  beerSelect.addEventListener("change", (e) => {
-    if (e.target.value === "직접입력") {
-      nameInput.style.display = "block"; // 직접입력 칸 보이기
-      nameInput.focus(); // 자동으로 키보드 띄워주기
-    } else {
-      nameInput.style.display = "none";  // 숨기기
-      nameInput.value = ""; // 숨겨질 때 기존 입력값 지우기
+    function save() {
+      localStorage.setItem("beerData", JSON.stringify(beerList));
     }
-    update();
-  });
 
-  // 값을 입력할 때마다 자동 저장 및 계산
-  nameInput.addEventListener("input", update);
-  volInput.addEventListener("input", update);
-  countInput.addEventListener("input", update);
-  priceInput.addEventListener("input", update);
+    function format(n) {
+      return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
 
-  // 삭제 버튼 이벤트
-  card.querySelector(".delete-btn").onclick = () => {
-    beerList.splice(index, 1);
-    render();
-    save();
-  };
+    function createCard(beer, index) {
+      const card = document.createElement("div");
+      card.className = "card";
 
-  document.getElementById("beerList").appendChild(card);
-}
+      // 🍺 자주 마시는 맥주 목록
+      const beerOptions = ["카스", "테라", "켈리", "하이트", "클라우드", "오비라거"];
+      
+      let isCustom = beer.name && !beerOptions.includes(beer.name);
+      let selectedValue = isCustom ? "직접입력" : (beer.name || "");
 
+      card.innerHTML = `
+        <div class="best-badge" style="display: none;"><span class="badge">👑 100ml당 최저가</span></div>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <select class="beer-select" style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: white;">
+            <option value="">맥주 선택</option>
+            ${beerOptions.map(b => `<option value="${b}" ${selectedValue === b ? 'selected' : ''}>${b}</option>`).join('')}
+            <option value="직접입력" ${isCustom || selectedValue === '직접입력' ? 'selected' : ''}>직접 입력...</option>
+          </select>
+          <input class="name-input" placeholder="맥주 직접 입력" value="${isCustom ? beer.name : ''}" style="display: ${isCustom ? 'block' : 'none'}; flex: 1; margin: 0; padding: 14px; border-radius: 12px; border: 1px solid #ccc;">
+        </div>
+        <div class="row">
+          <input class="vol-input" type="number" placeholder="용량 (ml)" value="${beer.volume || ""}">
+          <input class="count-input" type="number" placeholder="개수" value="${beer.count || ""}">
+        </div>
+        <input class="price-input" type="text" placeholder="가격 (원)" value="${beer.price ? format(beer.price) : ""}">
+        <div class="result"></div>
+        <button class="delete-btn">삭제</button>
+      `;
 
-  inputs.forEach(i => i.addEventListener("input", update));
+      const beerSelect = card.querySelector(".beer-select");
+      const nameInput = card.querySelector(".name-input");
+      const volInput = card.querySelector(".vol-input");
+      const countInput = card.querySelector(".count-input");
+      const priceInput = card.querySelector(".price-input");
 
-  card.querySelector(".delete-btn").onclick = () => {
-    beerList.splice(index, 1);
-    render();
-    save();
-  };
+      function update() {
+        beer.name = (beerSelect.value === "직접입력") ? nameInput.value : beerSelect.value;
+        beer.volume = volInput.value;
+        beer.count = countInput.value;
 
-  return card;
-}
+        let raw = priceInput.value.replace(/,/g,"");
+        beer.price = raw;
 
-function highlightBest() {
-  let bestIndex = -1;
-  let bestValue = Infinity;
+        if (raw) priceInput.value = format(raw);
 
-  beerList.forEach((b, i) => {
-    const v = parseFloat(b.volume);
-    const c = parseFloat(b.count);
-    const p = parseFloat(b.price);
+        highlightBest();
+        save();
+      }
 
-    if (v && c && p) {
-      const val = (p / (v * c)) * 100;
-      if (val < bestValue) {
-        bestValue = val;
-        bestIndex = i;
+      beerSelect.addEventListener("change", (e) => {
+        if (e.target.value === "직접입력") {
+          nameInput.style.display = "block";
+          nameInput.focus();
+        } else {
+          nameInput.style.display = "none";
+          nameInput.value = "";
+        }
+        update();
+      });
+
+      nameInput.addEventListener("input", update);
+      volInput.addEventListener("input", update);
+      countInput.addEventListener("input", update);
+      priceInput.addEventListener("input", update);
+
+      card.querySelector(".delete-btn").onclick = () => {
+        beerList.splice(index, 1);
+        render();
+        save();
+      };
+
+      // 💡 수정한 부분: document.getElementById... 대신 return card; 로 변경
+      return card;
+    }
+
+    function highlightBest() {
+      let bestIndex = -1;
+      let bestValue = Infinity;
+
+      const cards = document.querySelectorAll(".card");
+      cards.forEach(card => {
+        card.classList.remove("best");
+        const badge = card.querySelector(".best-badge");
+        if(badge) badge.style.display = "none";
+        const resultDiv = card.querySelector(".result");
+        if(resultDiv) resultDiv.innerText = "";
+      });
+
+      beerList.forEach((b, i) => {
+        const v = parseFloat(b.volume);
+        const c = parseFloat(b.count);
+        const p = parseFloat(b.price);
+
+        if (v && c && p) {
+          const val = (p / (v * c)) * 100;
+          
+          const resultDiv = cards[i].querySelector(".result");
+          if(resultDiv) resultDiv.innerText = `100ml당 약 ${Math.round(val).toLocaleString()}원`;
+
+          if (val < bestValue) {
+            bestValue = val;
+            bestIndex = i;
+          }
+        }
+      });
+
+      if (bestIndex !== -1 && cards[bestIndex]) {
+        cards[bestIndex].classList.add("best");
+        const badge = cards[bestIndex].querySelector(".best-badge");
+        if(badge) badge.style.display = "block";
       }
     }
-  });
 
-  document.querySelectorAll(".card").forEach((card, i) => {
-    const beer = beerList[i];
-    const resultDiv = card.querySelector(".result");
+    function render() {
+      const container = document.getElementById("beerList");
+      container.innerHTML = "";
 
-    const v = parseFloat(beer.volume);
-    const c = parseFloat(beer.count);
-    const p = parseFloat(beer.price);
+      beerList.forEach((beer, i) => {
+        container.appendChild(createCard(beer, i));
+      });
 
-    if (v && c && p) {
-      const total = v * c;
-      const unit = (p / total) * 100;
-
-      resultDiv.innerHTML = `
-        총 용량: ${format(total)} ml<br>
-        100ml당 가격: <strong>${unit.toFixed(1)} 원</strong>
-      `;
+      highlightBest();
     }
 
-    card.classList.remove("best");
-    const badge = card.querySelector(".badge");
-    if (badge) badge.remove();
-
-    if (i === bestIndex) {
-      card.classList.add("best");
-
-      const b = document.createElement("div");
-      b.className = "badge";
-      b.innerText = "👑 최고 가성비";
-      card.appendChild(b);
+    function addBeer() {
+      beerList.push({});
+      render();
+      save();
     }
-  });
-}
 
-function render() {
-  const container = document.getElementById("beerList");
-  container.innerHTML = "";
+    function resetAll() {
+      if (confirm("초기화할까요?")) {
+        beerList = [];
+        render();
+        save();
+      }
+    }
 
-  beerList.forEach((beer, i) => {
-    container.appendChild(createCard(beer, i));
-  });
+    // ✅ PWA 서비스워커 등록
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log('Service Worker Error', err));
+    }
 
-  highlightBest();
-}
-
-function addBeer() {
-  beerList.push({});
-  render();
-  save();
-}
-
-function resetAll() {
-  if (confirm("초기화할까요?")) {
-    beerList = [];
-    render();
-    save();
-  }
-}
-
-// ✅ PWA 서비스워커 등록
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
-}
-
-if (beerList.length === 0) addBeer();
-else render();
-</script>
-
+    if (beerList.length === 0) {
+      addBeer();
+    } else {
+      render();
+    }
+  </script>
 </body>
 </html>
