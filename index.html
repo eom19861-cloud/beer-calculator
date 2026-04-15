@@ -127,32 +127,81 @@ function createCard(beer, index) {
   const card = document.createElement("div");
   card.className = "card";
 
+  // 🍺 자주 마시는 맥주 목록 (원하시는 대로 추가/수정 가능합니다)
+  const beerOptions = ["카스", "테라", "켈리", "하이트", "클라우드", "오비라거"];
+  
+  // 저장된 맥주 이름이 목록에 없으면 '직접입력' 모드로 판단
+  let isCustom = beer.name && !beerOptions.includes(beer.name);
+  let selectedValue = isCustom ? "직접입력" : (beer.name || "");
+
   card.innerHTML = `
-    <input placeholder="맥주 이름" value="${beer.name || ""}">
-    <div class="row">
-      <input type="number" placeholder="용량 ml" value="${beer.volume || ""}">
-      <input type="number" placeholder="개수" value="${beer.count || ""}">
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <select class="beer-select" style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: white;">
+        <option value="">맥주 선택</option>
+        ${beerOptions.map(b => `<option value="${b}" ${selectedValue === b ? 'selected' : ''}>${b}</option>`).join('')}
+        <option value="직접입력" ${isCustom || selectedValue === '직접입력' ? 'selected' : ''}>직접 입력...</option>
+      </select>
+      <input class="name-input" placeholder="맥주 직접 입력" value="${isCustom ? beer.name : ''}" style="display: ${isCustom ? 'block' : 'none'}; flex: 1; margin: 0; padding: 14px; border-radius: 12px; border: 1px solid #ccc;">
     </div>
-    <input placeholder="가격" value="${beer.price || ""}">
-    <div class="result">값 입력</div>
+    <div class="row">
+      <input class="vol-input" type="number" placeholder="용량 ml" value="${beer.volume || ""}">
+      <input class="count-input" type="number" placeholder="개수" value="${beer.count || ""}">
+    </div>
+    <input class="price-input" type="text" placeholder="가격 (원)" value="${beer.price || ""}">
+    <div class="result"></div>
     <button class="delete-btn">삭제</button>
   `;
 
-  const inputs = card.querySelectorAll("input");
+  // 각 입력칸 요소 찾기
+  const beerSelect = card.querySelector(".beer-select");
+  const nameInput = card.querySelector(".name-input");
+  const volInput = card.querySelector(".vol-input");
+  const countInput = card.querySelector(".count-input");
+  const priceInput = card.querySelector(".price-input");
 
   function update() {
-    beer.name = inputs[0].value;
-    beer.volume = inputs[1].value;
-    beer.count = inputs[2].value;
+    // '직접입력'이 선택되었을 때는 텍스트 입력칸의 값을, 아니면 드롭다운의 값을 사용
+    beer.name = (beerSelect.value === "직접입력") ? nameInput.value : beerSelect.value;
+    beer.volume = volInput.value;
+    beer.count = countInput.value;
 
-    let raw = inputs[3].value.replace(/,/g,"");
+    let raw = priceInput.value.replace(/,/g,"");
     beer.price = raw;
 
-    if (raw) inputs[3].value = format(raw);
+    if (raw) priceInput.value = format(raw);
 
     highlightBest();
     save();
   }
+
+  // 드롭다운 선택이 바뀔 때 동작하는 이벤트
+  beerSelect.addEventListener("change", (e) => {
+    if (e.target.value === "직접입력") {
+      nameInput.style.display = "block"; // 직접입력 칸 보이기
+      nameInput.focus(); // 자동으로 키보드 띄워주기
+    } else {
+      nameInput.style.display = "none";  // 숨기기
+      nameInput.value = ""; // 숨겨질 때 기존 입력값 지우기
+    }
+    update();
+  });
+
+  // 값을 입력할 때마다 자동 저장 및 계산
+  nameInput.addEventListener("input", update);
+  volInput.addEventListener("input", update);
+  countInput.addEventListener("input", update);
+  priceInput.addEventListener("input", update);
+
+  // 삭제 버튼 이벤트
+  card.querySelector(".delete-btn").onclick = () => {
+    beerList.splice(index, 1);
+    render();
+    save();
+  };
+
+  document.getElementById("beerList").appendChild(card);
+}
+
 
   inputs.forEach(i => i.addEventListener("input", update));
 
