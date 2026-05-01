@@ -16,20 +16,18 @@
     .chip-container { margin-bottom: 16px; }
     .chip-label { display: block; font-size: 13px; color: #666; margin-bottom: 8px; font-weight: bold; }
     
-    /* 🌟 핵심: 가로로 스크롤 되도록 변경 */
+    /* 가로 스크롤 허용 (부드러운 스크롤) */
     .chip-group { 
       display: flex; 
       gap: 8px; 
-      overflow-x: auto; /* 가로 스크롤 허용 */
-      padding-bottom: 4px; /* 스크롤할 때 잘리지 않도록 여백 */
-      -webkit-overflow-scrolling: touch; /* 아이폰에서 부드러운 스크롤 */
+      overflow-x: auto; 
+      padding-bottom: 4px; 
+      -webkit-overflow-scrolling: touch; 
     }
-    
-    /* 지저분한 스크롤바 숨기기 */
-    .chip-group::-webkit-scrollbar { display: none; }
+    .chip-group::-webkit-scrollbar { display: none; } /* 스크롤바 숨김 */
     
     .chip { 
-      flex-shrink: 0; /* 🌟 버튼이 찌그러지지 않도록 고정 */
+      flex-shrink: 0; 
       padding: 10px 14px; 
       border: 1px solid #d1d5db; 
       border-radius: 24px; 
@@ -42,14 +40,13 @@
     }
     .chip.active { background: #1e88e5; color: white; border-color: #1e88e5; font-weight: bold; }
     
-    .row { display: flex; gap: 10px; margin-bottom: 10px; }
     input { width: 100%; box-sizing: border-box; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: #fafafa; }
     input:focus { border-color: #1e88e5; background: white; }
     .custom-input { margin-top: 8px; }
     
-    .result { font-weight: bold; color: #333; margin-top: 12px; margin-bottom: 12px; font-size: 15px; text-align: right; }
+    .result { font-weight: bold; color: #333; margin-top: 16px; margin-bottom: 12px; font-size: 15px; text-align: right; }
     
-    button { border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; }
+    button.action-btn { border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; }
     .delete-btn { background-color: #ffebee; color: #c62828; }
     .add-btn { background-color: #1e88e5; color: white; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(30,136,229,0.2); }
     .reset-btn { background-color: #e0e0e0; color: #555; }
@@ -60,8 +57,8 @@
   <div class="container">
     <h1>🍺 맥주픽</h1>
     <div id="beerList"></div>
-    <button class="add-btn" onclick="addBeer()">+ 새로운 맥주 추가</button>
-    <button class="reset-btn" onclick="resetAll()">전체 초기화</button>
+    <button class="action-btn add-btn" onclick="addBeer()">+ 새로운 맥주 추가</button>
+    <button class="action-btn reset-btn" onclick="resetAll()">전체 초기화</button>
   </div>
 
   <script>
@@ -74,19 +71,20 @@
       const card = document.createElement("div");
       card.className = "card";
 
+      // 🍺 브랜드, 용량(오름차순), 개수 설정
       const brands = ["카스", "테라", "켈리", "하이트", "클라우드", "버드와이저", "호가든", "하이네켄", "아사히", "기네스", "칭따오"];
-      
-      // 🌟 요청하신 12가지 용량 + 자주 쓰는 것을 맨 앞으로 배치
-      const volumes = ["500", "355", "330", "473", "340", "350", "360", "370", "400", "443", "453", "480"]; 
+      const volumes = ["330", "340", "350", "355", "360", "370", "400", "443", "453", "473", "480", "500"]; 
+      const counts = ["4", "6", "8"];
       
       let isCustomBrand = beer.name && !brands.includes(beer.name);
       let isCustomVol = beer.volume && !volumes.includes(beer.volume.toString());
+      let isCustomCount = beer.count && !counts.includes(beer.count.toString());
 
       card.innerHTML = `
         <div class="best-badge" style="display: none;"><span class="badge">👑 100ml당 최저가</span></div>
         
         <div class="chip-container">
-          <span class="chip-label">1. 맥주 종류 (좌우로 밀어보세요)</span>
+          <span class="chip-label">1. 맥주 종류</span>
           <div class="chip-group brand-group">
             ${brands.map(b => `<button type="button" class="chip ${beer.name === b ? 'active' : ''}" data-val="${b}">${b}</button>`).join('')}
             <button type="button" class="chip ${isCustomBrand ? 'active' : ''}" data-val="custom">직접입력</button>
@@ -95,7 +93,7 @@
         </div>
 
         <div class="chip-container">
-          <span class="chip-label">2. 한 캔(병) 용량 (좌우로 밀어보세요)</span>
+          <span class="chip-label">2. 한 캔(병) 용량</span>
           <div class="chip-group vol-group">
             ${volumes.map(v => `<button type="button" class="chip ${beer.volume == v ? 'active' : ''}" data-val="${v}">${v}ml</button>`).join('')}
             <button type="button" class="chip ${isCustomVol ? 'active' : ''}" data-val="custom">직접입력</button>
@@ -103,20 +101,28 @@
           <input class="custom-input vol-input" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="용량(ml) 직접 입력" value="${isCustomVol ? beer.volume : ''}" style="display: ${isCustomVol ? 'block' : 'none'};">
         </div>
 
-        <div class="chip-container" style="margin-bottom: 0;">
-          <span class="chip-label">3. 구매 정보</span>
-          <div class="row">
-            <input class="count-input" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="개수 (예: 4)" value="${beer.count || ""}">
-            <input class="price-input" type="text" inputmode="numeric" placeholder="총 가격 (원)" value="${beer.price ? format(beer.price) : ""}">
+        <div class="chip-container">
+          <span class="chip-label">3. 개수</span>
+          <div class="chip-group count-group">
+            ${counts.map(c => `<button type="button" class="chip ${beer.count == c ? 'active' : ''}" data-val="${c}">${c}개</button>`).join('')}
+            <button type="button" class="chip ${isCustomCount ? 'active' : ''}" data-val="custom">직접입력</button>
           </div>
+          <input class="custom-input count-input" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="개수 직접 입력" value="${isCustomCount ? beer.count : ''}" style="display: ${isCustomCount ? 'block' : 'none'};">
+        </div>
+
+        <div class="chip-container" style="margin-bottom: 0;">
+          <span class="chip-label">4. 총 가격 (원)</span>
+          <input class="price-input" type="text" inputmode="numeric" placeholder="결제할 총 가격 입력" value="${beer.price ? format(beer.price) : ""}">
         </div>
 
         <div class="result"></div>
-        <button class="delete-btn">이 항목 삭제</button>
+        <button class="action-btn delete-btn">이 항목 삭제</button>
       `;
 
       const brandChips = card.querySelectorAll(".brand-group .chip");
       const volChips = card.querySelectorAll(".vol-group .chip");
+      const countChips = card.querySelectorAll(".count-group .chip");
+      
       const nameInput = card.querySelector(".name-input");
       const volInput = card.querySelector(".vol-input");
       const countInput = card.querySelector(".count-input");
@@ -129,7 +135,8 @@
         const activeVol = card.querySelector(".vol-group .chip.active");
         if (activeVol) beer.volume = activeVol.dataset.val === "custom" ? volInput.value : activeVol.dataset.val;
 
-        beer.count = countInput.value;
+        const activeCount = card.querySelector(".count-group .chip.active");
+        if (activeCount) beer.count = activeCount.dataset.val === "custom" ? countInput.value : activeCount.dataset.val;
 
         let raw = priceInput.value.replace(/,/g,"");
         beer.price = raw;
@@ -140,14 +147,13 @@
         save();
       }
 
+      // 브랜드 칩 이벤트
       brandChips.forEach(chip => {
         chip.addEventListener("click", () => {
           brandChips.forEach(c => c.classList.remove("active"));
           chip.classList.add("active");
-          
           if (chip.dataset.val === "custom") {
-            nameInput.style.display = "block";
-            nameInput.focus();
+            nameInput.style.display = "block"; nameInput.focus();
           } else {
             nameInput.style.display = "none";
           }
@@ -155,16 +161,29 @@
         });
       });
 
+      // 용량 칩 이벤트
       volChips.forEach(chip => {
         chip.addEventListener("click", () => {
           volChips.forEach(c => c.classList.remove("active"));
           chip.classList.add("active");
-          
           if (chip.dataset.val === "custom") {
-            volInput.style.display = "block";
-            volInput.focus();
+            volInput.style.display = "block"; volInput.focus();
           } else {
             volInput.style.display = "none";
+          }
+          update();
+        });
+      });
+
+      // 개수 칩 이벤트
+      countChips.forEach(chip => {
+        chip.addEventListener("click", () => {
+          countChips.forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          if (chip.dataset.val === "custom") {
+            countInput.style.display = "block"; countInput.focus();
+          } else {
+            countInput.style.display = "none";
           }
           update();
         });
@@ -225,11 +244,7 @@
     function render() {
       const container = document.getElementById("beerList");
       container.innerHTML = "";
-
-      beerList.forEach((beer, i) => {
-        container.appendChild(createCard(beer, i));
-      });
-
+      beerList.forEach((beer, i) => container.appendChild(createCard(beer, i)));
       highlightBest();
     }
 
@@ -252,11 +267,8 @@
       navigator.serviceWorker.register('./sw.js').catch(err => console.log('Service Worker Error', err));
     }
 
-    if (beerList.length === 0) {
-      addBeer();
-    } else {
-      render();
-    }
+    if (beerList.length === 0) addBeer();
+    else render();
   </script>
 </body>
 </html>
