@@ -6,80 +6,129 @@
   <title>가성비 맥주 계산기</title>
   <link rel="manifest" href="./manifest.json">
   <style>
-    body { font-family: 'Pretendard', sans-serif; background-color: #f0f4f8; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', -apple-system, sans-serif; background-color: #f0f4f8; margin: 0; padding: 0; }
     .container { max-width: 500px; margin: 0 auto; padding: 20px; }
     h1 { text-align: center; color: #1e88e5; margin-bottom: 24px; }
-    .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid transparent; transition: all 0.3s; }
+    
+    .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 2px solid transparent; transition: all 0.3s; }
     .card.best { border-color: #ffb300; background-color: #fffdf2; }
-    .row { display: flex; gap: 8px; margin-bottom: 10px; }
-    input, select { width: 100%; box-sizing: border-box; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: white; }
-    input[type="number"], input[type="text"] { margin-bottom: 10px; }
-    .row input { margin-bottom: 0; }
-    .result { font-weight: bold; color: #555; margin-bottom: 10px; font-size: 14px; }
+    
+    .chip-container { margin-bottom: 16px; }
+    .chip-label { display: block; font-size: 13px; color: #666; margin-bottom: 8px; font-weight: bold; }
+    
+    /* 🌟 핵심: 가로로 스크롤 되도록 변경 */
+    .chip-group { 
+      display: flex; 
+      gap: 8px; 
+      overflow-x: auto; /* 가로 스크롤 허용 */
+      padding-bottom: 4px; /* 스크롤할 때 잘리지 않도록 여백 */
+      -webkit-overflow-scrolling: touch; /* 아이폰에서 부드러운 스크롤 */
+    }
+    
+    /* 지저분한 스크롤바 숨기기 */
+    .chip-group::-webkit-scrollbar { display: none; }
+    
+    .chip { 
+      flex-shrink: 0; /* 🌟 버튼이 찌그러지지 않도록 고정 */
+      padding: 10px 14px; 
+      border: 1px solid #d1d5db; 
+      border-radius: 24px; 
+      background: white; 
+      color: #374151; 
+      font-size: 14px; 
+      cursor: pointer; 
+      -webkit-tap-highlight-color: transparent; 
+      transition: 0.2s; 
+    }
+    .chip.active { background: #1e88e5; color: white; border-color: #1e88e5; font-weight: bold; }
+    
+    .row { display: flex; gap: 10px; margin-bottom: 10px; }
+    input { width: 100%; box-sizing: border-box; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: #fafafa; }
+    input:focus { border-color: #1e88e5; background: white; }
+    .custom-input { margin-top: 8px; }
+    
+    .result { font-weight: bold; color: #333; margin-top: 12px; margin-bottom: 12px; font-size: 15px; text-align: right; }
+    
     button { border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; }
     .delete-btn { background-color: #ffebee; color: #c62828; }
-    .add-btn { background-color: #1e88e5; color: white; margin-bottom: 10px; }
-    .reset-btn { background-color: #e0e0e0; color: #333; }
-    .badge { display: inline-block; background: #ffb300; color: white; padding: 4px 8px; border-radius: 8px; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
+    .add-btn { background-color: #1e88e5; color: white; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(30,136,229,0.2); }
+    .reset-btn { background-color: #e0e0e0; color: #555; }
+    .badge { display: inline-block; background: #ffb300; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-bottom: 12px; font-weight: bold; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🍺 맥주픽</h1>
     <div id="beerList"></div>
-    <button class="add-btn" onclick="addBeer()">+ 맥주 추가</button>
+    <button class="add-btn" onclick="addBeer()">+ 새로운 맥주 추가</button>
     <button class="reset-btn" onclick="resetAll()">전체 초기화</button>
   </div>
 
   <script>
     let beerList = JSON.parse(localStorage.getItem("beerData")) || [];
 
-    function save() {
-      localStorage.setItem("beerData", JSON.stringify(beerList));
-    }
-
-    function format(n) {
-      return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
+    function save() { localStorage.setItem("beerData", JSON.stringify(beerList)); }
+    function format(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
     function createCard(beer, index) {
       const card = document.createElement("div");
       card.className = "card";
 
-      // 🍺 자주 마시는 맥주 목록
-      const beerOptions = ["카스", "테라", "켈리", "하이트", "클라우드", "오비라거"];
+      const brands = ["카스", "테라", "켈리", "하이트", "클라우드", "버드와이저", "호가든", "하이네켄", "아사히", "기네스", "칭따오"];
       
-      let isCustom = beer.name && !beerOptions.includes(beer.name);
-      let selectedValue = isCustom ? "직접입력" : (beer.name || "");
+      // 🌟 요청하신 12가지 용량 + 자주 쓰는 것을 맨 앞으로 배치
+      const volumes = ["500", "355", "330", "473", "340", "350", "360", "370", "400", "443", "453", "480"]; 
+      
+      let isCustomBrand = beer.name && !brands.includes(beer.name);
+      let isCustomVol = beer.volume && !volumes.includes(beer.volume.toString());
 
       card.innerHTML = `
         <div class="best-badge" style="display: none;"><span class="badge">👑 100ml당 최저가</span></div>
-        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-          <select class="beer-select" style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; outline: none; background: white;">
-            <option value="">맥주 선택</option>
-            ${beerOptions.map(b => `<option value="${b}" ${selectedValue === b ? 'selected' : ''}>${b}</option>`).join('')}
-            <option value="직접입력" ${isCustom || selectedValue === '직접입력' ? 'selected' : ''}>직접 입력...</option>
-          </select>
-          <input class="name-input" placeholder="맥주 직접 입력" value="${isCustom ? beer.name : ''}" style="display: ${isCustom ? 'block' : 'none'}; flex: 1; margin: 0; padding: 14px; border-radius: 12px; border: 1px solid #ccc;">
+        
+        <div class="chip-container">
+          <span class="chip-label">1. 맥주 종류 (좌우로 밀어보세요)</span>
+          <div class="chip-group brand-group">
+            ${brands.map(b => `<button type="button" class="chip ${beer.name === b ? 'active' : ''}" data-val="${b}">${b}</button>`).join('')}
+            <button type="button" class="chip ${isCustomBrand ? 'active' : ''}" data-val="custom">직접입력</button>
+          </div>
+          <input class="custom-input name-input" type="text" placeholder="맥주 이름 직접 입력" value="${isCustomBrand ? beer.name : ''}" style="display: ${isCustomBrand ? 'block' : 'none'};">
         </div>
-        <div class="row">
-          <input class="vol-input" type="number" placeholder="용량 (ml)" value="${beer.volume || ""}">
-          <input class="count-input" type="number" placeholder="개수" value="${beer.count || ""}">
+
+        <div class="chip-container">
+          <span class="chip-label">2. 한 캔(병) 용량 (좌우로 밀어보세요)</span>
+          <div class="chip-group vol-group">
+            ${volumes.map(v => `<button type="button" class="chip ${beer.volume == v ? 'active' : ''}" data-val="${v}">${v}ml</button>`).join('')}
+            <button type="button" class="chip ${isCustomVol ? 'active' : ''}" data-val="custom">직접입력</button>
+          </div>
+          <input class="custom-input vol-input" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="용량(ml) 직접 입력" value="${isCustomVol ? beer.volume : ''}" style="display: ${isCustomVol ? 'block' : 'none'};">
         </div>
-        <input class="price-input" type="text" placeholder="가격 (원)" value="${beer.price ? format(beer.price) : ""}">
+
+        <div class="chip-container" style="margin-bottom: 0;">
+          <span class="chip-label">3. 구매 정보</span>
+          <div class="row">
+            <input class="count-input" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="개수 (예: 4)" value="${beer.count || ""}">
+            <input class="price-input" type="text" inputmode="numeric" placeholder="총 가격 (원)" value="${beer.price ? format(beer.price) : ""}">
+          </div>
+        </div>
+
         <div class="result"></div>
-        <button class="delete-btn">삭제</button>
+        <button class="delete-btn">이 항목 삭제</button>
       `;
 
-      const beerSelect = card.querySelector(".beer-select");
+      const brandChips = card.querySelectorAll(".brand-group .chip");
+      const volChips = card.querySelectorAll(".vol-group .chip");
       const nameInput = card.querySelector(".name-input");
       const volInput = card.querySelector(".vol-input");
       const countInput = card.querySelector(".count-input");
       const priceInput = card.querySelector(".price-input");
 
       function update() {
-        beer.name = (beerSelect.value === "직접입력") ? nameInput.value : beerSelect.value;
-        beer.volume = volInput.value;
+        const activeBrand = card.querySelector(".brand-group .chip.active");
+        if (activeBrand) beer.name = activeBrand.dataset.val === "custom" ? nameInput.value : activeBrand.dataset.val;
+
+        const activeVol = card.querySelector(".vol-group .chip.active");
+        if (activeVol) beer.volume = activeVol.dataset.val === "custom" ? volInput.value : activeVol.dataset.val;
+
         beer.count = countInput.value;
 
         let raw = priceInput.value.replace(/,/g,"");
@@ -91,15 +140,34 @@
         save();
       }
 
-      beerSelect.addEventListener("change", (e) => {
-        if (e.target.value === "직접입력") {
-          nameInput.style.display = "block";
-          nameInput.focus();
-        } else {
-          nameInput.style.display = "none";
-          nameInput.value = "";
-        }
-        update();
+      brandChips.forEach(chip => {
+        chip.addEventListener("click", () => {
+          brandChips.forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          
+          if (chip.dataset.val === "custom") {
+            nameInput.style.display = "block";
+            nameInput.focus();
+          } else {
+            nameInput.style.display = "none";
+          }
+          update();
+        });
+      });
+
+      volChips.forEach(chip => {
+        chip.addEventListener("click", () => {
+          volChips.forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          
+          if (chip.dataset.val === "custom") {
+            volInput.style.display = "block";
+            volInput.focus();
+          } else {
+            volInput.style.display = "none";
+          }
+          update();
+        });
       });
 
       nameInput.addEventListener("input", update);
@@ -113,7 +181,6 @@
         save();
       };
 
-      // 💡 수정한 부분: document.getElementById... 대신 return card; 로 변경
       return card;
     }
 
@@ -139,7 +206,7 @@
           const val = (p / (v * c)) * 100;
           
           const resultDiv = cards[i].querySelector(".result");
-          if(resultDiv) resultDiv.innerText = `100ml당 약 ${Math.round(val).toLocaleString()}원`;
+          if(resultDiv) resultDiv.innerHTML = `100ml 당 <span style="color:#1e88e5;">${Math.round(val).toLocaleString()}원</span>`;
 
           if (val < bestValue) {
             bestValue = val;
@@ -173,7 +240,7 @@
     }
 
     function resetAll() {
-      if (confirm("초기화할까요?")) {
+      if (confirm("모든 목록을 초기화할까요?")) {
         beerList = [];
         render();
         save();
